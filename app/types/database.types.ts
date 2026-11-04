@@ -89,6 +89,47 @@ export interface Database {
           },
         ];
       };
+      exercise_gif_overrides: {
+        Row: {
+          id: string;
+          personal_id: string;
+          external_exercise_id: string;
+          exercise_name: string;
+          gif_url: string;
+          storage_path: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          personal_id: string;
+          external_exercise_id: string;
+          exercise_name: string;
+          gif_url: string;
+          storage_path?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          personal_id?: string;
+          external_exercise_id?: string;
+          exercise_name?: string;
+          gif_url?: string;
+          storage_path?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_gif_overrides_personal_id_fkey';
+            columns: ['personal_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       workout_plans: {
         Row: {
           id: string;
@@ -241,6 +282,9 @@ export type WorkoutPlanWithItems = WorkoutPlan & {
 export type StudentWithAnamnesis = Student & {
   student_anamneses: StudentAnamnesis | null;
 };
+
+export type ExerciseGifOverrideRow =
+  Database['public']['Tables']['exercise_gif_overrides']['Row'];
 
 export type PublicWorkoutPlan = Omit<WorkoutPlan, 'access_token'> & {
   items: WorkoutItem[];

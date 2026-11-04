@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   select: [exercise: ExerciseOption]
+  editGif: [exercise: ExerciseOption]
 }>()
 
 const search = ref('')
@@ -189,11 +190,9 @@ onBeforeUnmount(() => {
                 <div
                   class="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100"
                 >
-                  <img
+                  <ExerciseGifPreview
                     :src="exercise.gifUrl"
                     :alt="`Demonstração do exercício ${exercise.name}`"
-                    class="absolute inset-0 h-full w-full object-cover text-transparent"
-                    loading="lazy"
                   />
                 </div>
 
@@ -205,6 +204,15 @@ onBeforeUnmount(() => {
                     {{ exercise.muscleLabel }}
                   </p>
                 </div>
+
+                <button
+                  type="button"
+                  class="flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200"
+                  :aria-label="`Trocar GIF de ${exercise.name}`"
+                  @click="emit('editGif', exercise)"
+                >
+                  <BaseIcon name="edit" :size="18" />
+                </button>
 
                 <button
                   type="button"

@@ -20,11 +20,10 @@ const emit = defineEmits<{
       <div
         class="relative h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-800"
       >
-        <img
+        <ExerciseGifPreview
           :src="item.gifUrl"
           :alt="`Demonstração do exercício ${item.name}`"
-          class="absolute inset-0 h-full w-full object-cover text-transparent"
-          loading="lazy"
+          dark
         />
       </div>
 

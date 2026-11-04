@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import type { ExerciseOption, WorkoutDivisionView } from '~/types/app.types'
+import type {
+  ExerciseGifOverride,
+  ExerciseOption,
+  WorkoutDivisionView,
+} from '~/types/app.types'
 import { getExerciseOptions } from '~/services/exerciseService'
+import {
+  applyExerciseGifOverrides,
+  listExerciseGifOverrides,
+} from '~/services/exerciseGifService'
 import {
   addWorkoutItem,
   getWorkoutEditorData,
@@ -15,12 +23,20 @@ const studentId = String(route.params.studentId ?? '')
 const { data, pending, error, refresh } = await useAsyncData(
   `workout-editor-${studentId}`,
   async () => {
+    const overrides = await listExerciseGifOverrides().catch(
+      () => [] as ExerciseGifOverride[],
+    )
+
     const [editor, exercises] = await Promise.all([
-      getWorkoutEditorData(studentId),
+      getWorkoutEditorData(studentId, overrides),
       getExerciseOptions().catch(() => [] as ExerciseOption[]),
     ])
 
-    return { editor, exercises }
+    return {
+      editor,
+      exercises: applyExerciseGifOverrides(exercises, overrides),
+      overrides,
+    }
   },
 )
 
@@ -30,6 +46,9 @@ const anamnesis = computed(() => editor.value?.anamnesis ?? null)
 const plan = computed(() => editor.value?.plan ?? null)
 const exerciseOptions = computed<ExerciseOption[]>(
   () => data.value?.exercises ?? [],
+)
+const gifOverrides = computed<ExerciseGifOverride[]>(
+  () => data.value?.overrides ?? [],
 )
 
 const divisions = ref<WorkoutDivisionView[]>([])
@@ -62,6 +81,13 @@ const activeDivision = computed(
 )
 
 const pickerOpen = ref(false)
+const gifDialogOpen = ref(false)
+const gifDialogExercise = ref<{
+  id: string
+  name: string
+  gifUrl: string
+  hasOverride: boolean
+} | null>(null)
 const toast = reactive<{
   open: boolean
   message: string
@@ -96,6 +122,40 @@ function showToast(message: string, tone: 'success' | 'info' = 'success') {
   toastTimer = setTimeout(() => {
     toast.open = false
   }, 2800)
+}
+
+function openGifDialog(exercise: {
+  id: string
+  name: string
+  gifUrl: string
+}) {
+  const override = gifOverrides.value.find(
+    (item) => item.exerciseId === exercise.id,
+  )
+
+  gifDialogExercise.value = {
+    id: exercise.id,
+    name: exercise.name,
+    gifUrl: override?.gifUrl ?? exercise.gifUrl,
+    hasOverride: Boolean(override),
+  }
+  gifDialogOpen.value = true
+}
+
+function closeGifDialog() {
+  gifDialogOpen.value = false
+}
+
+async function handleGifSaved() {
+  closeGifDialog()
+  showToast('GIF atualizado em todos os treinos deste exercício.')
+  await refresh()
+}
+
+async function handleGifRemoved() {
+  closeGifDialog()
+  showToast('GIF original restaurado.', 'info')
+  await refresh()
 }
 
 function selectDivision(divisionId: string) {
@@ -414,6 +474,13 @@ useHead({
             :index="index"
             @remove="handleRemoveExercise(item.id)"
             @update-sets="handleUpdateSets(item.id, $event)"
+            @edit-gif="
+              openGifDialog({
+                id: item.exerciseId,
+                name: item.name,
+                gifUrl: item.gifUrl,
+              })
+            "
           />
 
           <button
@@ -469,6 +536,18 @@ useHead({
       :selected-exercise-ids="selectedExerciseIds"
       @close="pickerOpen = false"
       @select="handleSelectExercise"
+      @edit-gif="openGifDialog($event)"
+    />
+
+    <ExerciseGifDialog
+      :open="gifDialogOpen"
+      :exercise-id="gifDialogExercise?.id ?? ''"
+      :exercise-name="gifDialogExercise?.name ?? ''"
+      :current-gif-url="gifDialogExercise?.gifUrl ?? ''"
+      :has-override="gifDialogExercise?.hasOverride ?? false"
+      @close="closeGifDialog"
+      @saved="handleGifSaved"
+      @removed="handleGifRemoved"
     />
 
     <AppToast :open="toast.open" :message="toast.message" :tone="toast.tone" />

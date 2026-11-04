@@ -26,6 +26,7 @@ O Kinetic foi desenhado para reduzir digitação e decisões complexas:
 - **Anamnese em 3 passos:** objetivo, rotina e saúde, com seleção múltipla de dores e condições médicas.
 - **Criador de treino:** banner fixo de lesão, divisões (Treino A, B, C…), busca de exercícios por grupo muscular, preview em GIF e ajuste de séries sem digitar.
 - **PWA do aluno:** modo escuro, progresso do treino, cards com GIF e checkbox gigante de conclusão.
+- **GIFs personalizados:** troca do GIF de um exercício por upload ou URL, valendo para todos os treinos do personal.
 - **Compartilhamento:** geração de link `wa.me` com mensagem pronta e token público do plano.
 
 ## Stack
@@ -124,6 +125,14 @@ supabase/migrations/20261104000001_add_student_name_to_public_workout_plan.sql
 
 Ela adiciona o nome do aluno ao retorno público da RPC `get_public_workout_plan`, usado pela PWA.
 
+A migration de GIFs personalizados está em:
+
+```text
+supabase/migrations/20261104000003_add_exercise_gif_overrides.sql
+```
+
+Ela cria a tabela `exercise_gif_overrides`, as políticas de RLS, o bucket público `exercise-gifs` (limite de 8 MB) e atualiza a RPC `get_public_workout_plan` para aplicar os GIFs do personal dono do aluno.
+
 Aplique as migrations com a CLI do Supabase:
 
 ```bash
@@ -152,6 +161,18 @@ DESIGN.md
 ## Exercícios
 
 Os GIFs vêm do repositório `ExerciseGymGifsDB`, fixados na versão `v1.1.0` via jsDelivr. O serviço em `app/services/exerciseService.ts` consome `api/<lang>/exercises.json` e permite busca e filtro por grupo muscular.
+
+### GIFs personalizados
+
+Quando um GIF da biblioteca deixa de funcionar, o personal pode substituí-lo sem alterar o exercício:
+
+- O botão **Trocar GIF** fica no card do treino e no seletor de exercícios.
+- Se a imagem falhar, o card mostra o aviso **GIF indisponível** e o botão vira **Corrigir GIF**.
+- É possível enviar um arquivo (GIF, WebP, PNG ou JPG, até 8 MB) ou colar uma URL `https`.
+- A troca é por exercício e vale para todos os treinos e alunos do personal.
+- **Restaurar GIF original** remove a personalização e volta ao GIF da biblioteca.
+
+Os overrides ficam em `exercise_gif_overrides`, com o arquivo enviado no bucket `exercise-gifs`. O GIF original continua salvo em `workout_items.gif_url` como fallback. A PWA pública aplica os overrides pela RPC, então o aluno vê a correção automaticamente.
 
 ## Próximos passos
 

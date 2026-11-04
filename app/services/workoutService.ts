@@ -4,6 +4,7 @@
 import { useSupabaseClient } from '#imports'
 import type { Database, WorkoutItem, WorkoutPlan } from '~/types/database.types'
 import type {
+  ExerciseGifOverride,
   ExerciseOption,
   PublicWorkoutPlanData,
   PublicWorkoutPlanPayload,
@@ -12,12 +13,16 @@ import type {
   WorkoutItemView,
 } from '~/types/app.types'
 import { resolveMuscle } from '~/utils/muscles'
+import { listExerciseGifOverrides } from './exerciseGifService'
 import { getStudentDetail } from './studentService'
 
 // Divisões mínimas exibidas mesmo quando o plano ainda está vazio.
 const DEFAULT_SESSION_LABELS = ['A', 'B', 'C']
 
-function mapWorkoutItem(row: WorkoutItem): WorkoutItemView {
+function mapWorkoutItem(
+  row: WorkoutItem,
+  overrideGifUrl?: string,
+): WorkoutItemView {
   const muscle = resolveMuscle(row.target_muscle)
 
   return {
@@ -26,7 +31,7 @@ function mapWorkoutItem(row: WorkoutItem): WorkoutItemView {
     name: row.exercise_name,
     muscleGroup: muscle.group,
     muscleLabel: muscle.label,
-    gifUrl: row.gif_url,
+    gifUrl: overrideGifUrl ?? row.gif_url,
     sets: row.sets,
     reps: row.reps,
     restSeconds: row.rest_seconds,
@@ -40,8 +45,10 @@ function sortSessionLabels(labels: string[]): string[] {
 }
 
 // Agrupa os itens por session_label e monta o resumo de foco de cada divisão.
+// O mapa opcional aplica os GIFs personalizados do personal.
 export function buildWorkoutDivisions(
   items: WorkoutItem[],
+  overridesByExerciseId?: Map<string, string>,
 ): WorkoutDivisionView[] {
   const labels = new Set<string>(DEFAULT_SESSION_LABELS)
 
@@ -53,7 +60,12 @@ export function buildWorkoutDivisions(
     const divisionItems = items
       .filter((item) => item.session_label === label)
       .sort((first, second) => first.order_index - second.order_index)
-      .map(mapWorkoutItem)
+      .map((item) =>
+        mapWorkoutItem(
+          item,
+          overridesByExerciseId?.get(item.external_exercise_id),
+        ),
+      )
 
     const focus = [...new Set(divisionItems.map((item) => item.muscleLabel))]
       .slice(0, 3)
@@ -115,8 +127,10 @@ export async function getOrCreateActivePlan(
 }
 
 // Carrega tudo que o criador de treino precisa em uma única chamada.
+// Os overrides podem ser passados pela página para evitar uma consulta extra.
 export async function getWorkoutEditorData(
   studentId: string,
+  providedOverrides?: ExerciseGifOverride[],
 ): Promise<WorkoutEditorData | null> {
   const detail = await getStudentDetail(studentId)
 
@@ -126,6 +140,13 @@ export async function getWorkoutEditorData(
 
   const plan = await getOrCreateActivePlan(studentId)
   const client = useSupabaseClient<Database>()
+
+  const overrides =
+    providedOverrides ??
+    (await listExerciseGifOverrides().catch(() => [] as ExerciseGifOverride[]))
+  const overridesByExerciseId = new Map(
+    overrides.map((override) => [override.exerciseId, override.gifUrl]),
+  )
 
   const { data: items, error } = await client
     .from('workout_items')
@@ -144,7 +165,8 @@ export async function getWorkoutEditorData(
     student: detail.student,
     anamnesis: detail.anamnesis,
     plan,
-    divisions: buildWorkoutDivisions(items ?? []),
+    overrides,
+    divisions: buildWorkoutDivisions(items ?? [], overridesByExerciseId),
   }
 }
 

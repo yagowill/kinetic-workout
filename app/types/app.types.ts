@@ -41,6 +41,14 @@ export interface ExerciseOption {
   gifUrl: string
 }
 
+export interface ExerciseGifOverride {
+  exerciseId: string
+  exerciseName: string
+  gifUrl: string
+  storagePath: string | null
+  updatedAt: string
+}
+
 export interface WorkoutItemView {
   id: string
   exerciseId: string
@@ -64,6 +72,7 @@ export interface WorkoutEditorData {
   student: StudentSummary
   anamnesis: StudentAnamnesisData | null
   plan: WorkoutPlan
+  overrides: ExerciseGifOverride[]
   divisions: WorkoutDivisionView[]
 }
 

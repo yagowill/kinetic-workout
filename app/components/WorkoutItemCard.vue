@@ -9,7 +9,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   remove: []
   updateSets: [nextSets: number]
+  editGif: []
 }>()
+
+const imageFailed = ref(false)
+
+// Ao trocar o GIF, o rótulo volta para "Trocar GIF" até a nova imagem falhar.
+watch(
+  () => props.item.gifUrl,
+  () => {
+    imageFailed.value = false
+  },
+)
 
 function changeSets(amount: number) {
   emit('updateSets', props.item.sets + amount)
@@ -22,11 +33,11 @@ function changeSets(amount: number) {
       <div
         class="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100"
       >
-        <img
+        <ExerciseGifPreview
           :src="item.gifUrl"
           :alt="`Demonstração do exercício ${item.name}`"
-          class="absolute inset-0 h-full w-full object-cover text-transparent"
-          loading="lazy"
+          @error="imageFailed = true"
+          @loaded="imageFailed = false"
         />
         <span
           class="absolute left-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-lg bg-slate-950/80 px-1 text-xs font-extrabold text-white"
@@ -68,6 +79,25 @@ function changeSets(amount: number) {
             {{ item.restSeconds }}s
           </span>
         </div>
+
+        <button
+          type="button"
+          class="mt-2 inline-flex min-h-12 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-extrabold transition-colors"
+          :class="
+            imageFailed
+              ? 'border-warning-300 bg-warning-50 text-warning-800 hover:bg-warning-100'
+              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          "
+          :aria-label="
+            imageFailed
+              ? `Corrigir GIF de ${item.name}`
+              : `Trocar GIF de ${item.name}`
+          "
+          @click="emit('editGif')"
+        >
+          <BaseIcon name="edit" :size="16" />
+          {{ imageFailed ? 'Corrigir GIF' : 'Trocar GIF' }}
+        </button>
       </div>
     </div>
 
