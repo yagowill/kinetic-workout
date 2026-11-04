@@ -2,7 +2,7 @@
 // Centraliza leituras e gravações no Supabase para que as páginas não
 // conheçam detalhes de tabelas, joins ou conversão de tipos.
 
-import { useSupabaseClient, useSupabaseUser } from '#imports'
+import { useSupabaseClient } from '#imports'
 import type {
   Database,
   Json,
@@ -224,10 +224,10 @@ export async function createStudentWithAnamnesis(input: {
   anamnesis: StudentAnamnesisData
 }): Promise<StudentSummary> {
   const client = useSupabaseClient<Database>()
-  const user = useSupabaseUser()
-  const personalId = user.value?.id
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  const personalId = user?.id
 
-  if (!personalId) {
+  if (authError || !personalId) {
     throw new Error('Sua sessão expirou. Entre novamente para cadastrar o aluno.')
   }
 
