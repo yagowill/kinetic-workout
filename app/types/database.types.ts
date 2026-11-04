@@ -19,6 +19,7 @@ export interface Database {
           personal_id: string;
           name: string;
           phone: string;
+          anamnesis_token: string;
           created_at: string;
         };
         Insert: {
@@ -26,6 +27,7 @@ export interface Database {
           personal_id: string;
           name: string;
           phone: string;
+          anamnesis_token?: string;
           created_at?: string;
         };
         Update: {
@@ -33,6 +35,7 @@ export interface Database {
           personal_id?: string;
           name?: string;
           phone?: string;
+          anamnesis_token?: string;
           created_at?: string;
         };
         Relationships: [
@@ -243,6 +246,24 @@ export interface Database {
       get_public_workout_plan: {
         Args: {
           p_access_token: string;
+        };
+        Returns: Json | null;
+      };
+      get_public_anamnesis: {
+        Args: {
+          p_token: string;
+        };
+        Returns: Json | null;
+      };
+      save_public_anamnesis: {
+        Args: {
+          p_token: string;
+          p_primary_goal: string;
+          p_experience_level: string;
+          p_weekly_frequency: number;
+          p_joint_pains: Json;
+          p_medical_conditions: Json;
+          p_additional_notes: string | null;
         };
         Returns: Json | null;
       };

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { StudentSummary } from '~/types/app.types'
+import { buildAnamnesisWhatsAppUrl } from '~/services/whatsappService'
 
 const props = defineProps<{
   student: StudentSummary
@@ -18,6 +19,29 @@ const anamnesisActionLabel = computed(() =>
   props.student.anamnesisStatus === 'complete'
     ? 'Ver anamnese'
     : 'Preencher anamnese',
+)
+
+// Link do WhatsApp para o aluno responder a própria anamnese.
+const anamnesisWhatsAppUrl = computed(() => {
+  if (!props.student.anamnesisToken) {
+    return null
+  }
+
+  try {
+    return buildAnamnesisWhatsAppUrl(
+      props.student.phone,
+      props.student.name,
+      props.student.anamnesisToken,
+    )
+  } catch {
+    return null
+  }
+})
+
+const anamnesisWhatsAppLabel = computed(() =>
+  props.student.anamnesisStatus === 'complete'
+    ? 'Enviar anamnese no WhatsApp'
+    : 'Pedir anamnese no WhatsApp',
 )
 </script>
 
@@ -73,5 +97,17 @@ const anamnesisActionLabel = computed(() =>
         Criar/Ver treino
       </NuxtLink>
     </div>
+
+    <a
+      v-if="anamnesisWhatsAppUrl"
+      :href="anamnesisWhatsAppUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="-mb-1 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-extrabold text-success-700 transition-colors hover:bg-success-50 active:bg-success-100"
+      :aria-label="`${anamnesisWhatsAppLabel} de ${student.name}`"
+    >
+      <BaseIcon name="whatsapp" :size="18" />
+      {{ anamnesisWhatsAppLabel }}
+    </a>
   </article>
 </template>

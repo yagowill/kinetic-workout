@@ -24,6 +24,7 @@ export interface StudentSummary {
   anamnesisStatus: AnamnesisStatus
   jointPains: string[]
   accessToken: string | null
+  anamnesisToken: string | null
   avatarColor: string
 }
 
@@ -86,4 +87,25 @@ export interface PublicWorkoutPlanData {
   studentName: string
   plan: Omit<WorkoutPlan, 'access_token'>
   divisions: WorkoutDivisionView[]
+}
+
+export interface PublicAnamnesisPayload {
+  student_name: string | null
+  updated_at: string | null
+  workout_access_token: string | null
+  anamnesis: {
+    primary_goal: string
+    experience_level: string
+    weekly_frequency: number
+    joint_pains: string[]
+    medical_conditions: string[]
+    additional_notes: string | null
+  } | null
+}
+
+export interface PublicAnamnesisData {
+  studentName: string
+  updatedAt: string | null
+  workoutAccessToken: string | null
+  anamnesis: StudentAnamnesisData | null
 }

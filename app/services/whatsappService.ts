@@ -78,3 +78,31 @@ export function buildWorkoutWhatsAppUrl(
 
   return `${WHATSAPP_BASE_URL}/${normalizedPhone}?text=${encodeURIComponent(message)}`;
 }
+
+// Gera a URL do WhatsApp com o link público da anamnese.
+// O aluno pode reabrir o mesmo link para atualizar as respostas.
+export function buildAnamnesisWhatsAppUrl(
+  studentPhone: string,
+  studentName: string,
+  anamnesisToken: string,
+): string {
+  const normalizedPhone = normalizeBrazilianPhone(studentPhone);
+  const normalizedToken = anamnesisToken.trim();
+
+  if (normalizedToken.length === 0) {
+    throw new Error('O token da anamnese não foi informado.');
+  }
+
+  const appBaseUrl = resolveAppBaseUrl();
+  const anamnesisUrl = `${appBaseUrl}/a/${encodeURIComponent(normalizedToken)}`;
+  const studentDisplayName = studentName.trim() || 'aluno';
+
+  const message = [
+    `Olá, ${studentDisplayName}!`,
+    'Para montar seu treino, preciso de algumas informações sobre você.',
+    `Responda sua anamnese aqui: ${anamnesisUrl}`,
+    'Leva menos de 2 minutos e você pode atualizar as respostas depois pelo mesmo link.',
+  ].join('\n');
+
+  return `${WHATSAPP_BASE_URL}/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+}

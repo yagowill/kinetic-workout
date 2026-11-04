@@ -24,6 +24,7 @@ O Kinetic foi desenhado para reduzir digitação e decisões complexas:
 
 - **Dashboard do personal:** carteira de alunos, status da anamnese, alertas de dor e cadastro de novo aluno.
 - **Anamnese em 3 passos:** objetivo, rotina e saúde, com seleção múltipla de dores e condições médicas.
+- **Anamnese pelo aluno:** link no WhatsApp, formulário público em tema claro e respostas que podem ser atualizadas depois.
 - **Criador de treino:** banner fixo de lesão, divisões (Treino A, B, C…), busca de exercícios por grupo muscular, preview em GIF e ajuste de séries sem digitar.
 - **PWA do aluno:** modo escuro, progresso do treino, cards com GIF e checkbox gigante de conclusão.
 - **GIFs personalizados:** troca do GIF de um exercício por upload ou URL, valendo para todos os treinos do personal.
@@ -46,8 +47,9 @@ O Kinetic foi desenhado para reduzir digitação e decisões complexas:
 | `/anamnesis/[studentId]` | Autenticado | Anamnese de um aluno existente |
 | `/workout/[studentId]` | Autenticado | Criador de treino |
 | `/t/[accessToken]` | Público | PWA do aluno (modo escuro) |
+| `/a/[anamnesisToken]` | Público | Anamnese preenchida pelo aluno |
 
-O acesso do aluno usa o `access_token` gerado pelo banco. Não há login para o aluno: o link enviado pelo WhatsApp é a credencial.
+O acesso do aluno usa tokens gerados pelo banco. Não há login para o aluno: o link enviado pelo WhatsApp é a credencial. O token do treino (`/t/...`) e o token da anamnese (`/a/...`) são independentes.
 
 ## Autenticação e dados reais
 
@@ -60,6 +62,19 @@ O middleware global `app/middleware/auth.global.ts` protege as rotas do personal
 - Alunos, anamneses e treinos são lidos e gravados pelos services em `app/services/`.
 
 Para popular a aplicação, basta cadastrar alunos pela própria interface. Não há mais dados mockados no código.
+
+## Anamnese pelo aluno
+
+O personal pode enviar a anamnese pelo WhatsApp de duas formas:
+
+- no card do aluno, em **Pedir anamnese no WhatsApp** (ou **Enviar anamnese** quando já respondida);
+- na tela de anamnese, pelo ícone do WhatsApp no topo ou pelo botão após salvar.
+
+O aluno abre o link público `/a/<token>`, responde em 3 passos e envia. O mesmo link continua válido para atualizar as respostas. O personal vê e edita a mesma anamnese na área autenticada.
+
+- O token fica em `students.anamnesis_token` e é independente do token do treino.
+- As respostas são gravadas em `student_anamneses` pelas RPCs `get_public_anamnesis` e `save_public_anamnesis`.
+- A página pública é clara, mobile-first e não exige login.
 
 ## Design System
 
@@ -132,6 +147,14 @@ supabase/migrations/20261104000003_add_exercise_gif_overrides.sql
 ```
 
 Ela cria a tabela `exercise_gif_overrides`, as políticas de RLS, o bucket público `exercise-gifs` (limite de 8 MB) e atualiza a RPC `get_public_workout_plan` para aplicar os GIFs do personal dono do aluno.
+
+A migration da anamnese pública está em:
+
+```text
+supabase/migrations/20261104000004_add_public_anamnesis.sql
+```
+
+Ela adiciona `students.anamnesis_token` e as RPCs `get_public_anamnesis` e `save_public_anamnesis`, usadas pelo formulário público do aluno.
 
 Aplique as migrations com a CLI do Supabase:
 

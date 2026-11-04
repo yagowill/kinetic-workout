@@ -84,6 +84,7 @@ function mapStudentSummary(
     anamnesisStatus: anamnesisData ? 'complete' : 'pending',
     jointPains: anamnesisData?.jointPains ?? [],
     accessToken: plan?.access_token ?? null,
+    anamnesisToken: student.anamnesis_token ?? null,
     avatarColor: pickAvatarColor(student.id),
   }
 }

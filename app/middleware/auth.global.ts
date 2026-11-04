@@ -1,8 +1,8 @@
 export default defineNuxtRouteMiddleware((to) => {
   const user = useSupabaseUser()
 
-  // A PWA do aluno é pública: o token da URL é a credencial.
-  if (to.path.startsWith('/t/')) {
+  // A PWA do aluno e a anamnese pública são acessadas por token.
+  if (to.path.startsWith('/t/') || to.path.startsWith('/a/')) {
     return
   }
 

@@ -1,10 +1,23 @@
 <script setup lang="ts">
-import type { StudentAnamnesisData } from '~/types/app.types'
+import type {
+  StudentAnamnesisData,
+  StudentSummary,
+} from '~/types/app.types'
 import {
   createStudentWithAnamnesis,
   getStudentDetail,
   saveStudentAnamnesis,
 } from '~/services/studentService'
+import { buildAnamnesisWhatsAppUrl } from '~/services/whatsappService'
+import {
+  experienceOptions,
+  frequencyOptions,
+  goalOptions,
+  jointPainOptions,
+  medicalConditionOptions,
+  toggleJointPainSelection,
+  toggleMedicalConditionSelection,
+} from '~/utils/anamnesis'
 
 const route = useRoute()
 
@@ -27,6 +40,7 @@ const formError = ref('')
 const showSuccess = ref(false)
 const saving = ref(false)
 const savedStudentId = ref('')
+const createdStudent = ref<StudentSummary | null>(null)
 
 const newStudentName = ref('')
 const newStudentPhone = ref('')
@@ -62,81 +76,6 @@ const steps = [
   { label: 'Saúde', shortLabel: 'Saúde' },
 ]
 
-const goalOptions = [
-  {
-    value: 'Hipertrofia',
-    label: 'Hipertrofia',
-    description: 'Ganhar massa muscular',
-    emoji: '💪',
-  },
-  {
-    value: 'Emagrecimento',
-    label: 'Emagrecimento',
-    description: 'Reduzir gordura corporal',
-    emoji: '🔥',
-  },
-  {
-    value: 'Condicionamento',
-    label: 'Condicionamento',
-    description: 'Melhorar fôlego e energia',
-    emoji: '🫀',
-  },
-  {
-    value: 'Força',
-    label: 'Força',
-    description: 'Levantar mais carga',
-    emoji: '🏋️',
-  },
-  {
-    value: 'Saúde geral',
-    label: 'Saúde geral',
-    description: 'Movimentar com mais conforto',
-    emoji: '🌱',
-  },
-]
-
-const experienceOptions = [
-  {
-    value: 'Iniciante',
-    label: 'Iniciante',
-    description: 'Primeiros meses de treino',
-  },
-  {
-    value: 'Intermediário',
-    label: 'Intermediário',
-    description: 'Já treina com frequência',
-  },
-  {
-    value: 'Avançado',
-    label: 'Avançado',
-    description: 'Treina há mais de 1 ano',
-  },
-]
-
-const frequencyOptions = [
-  { value: 2, label: '2x' },
-  { value: 3, label: '3x' },
-  { value: 4, label: '4x' },
-  { value: 5, label: '5x+' },
-]
-
-const jointPainOptions = [
-  'Ombro',
-  'Joelho',
-  'Coluna',
-  'Quadril',
-  'Tornozelo',
-  'Nenhuma',
-]
-
-const medicalConditionOptions = [
-  'Hipertensão',
-  'Diabetes',
-  'Problema cardíaco',
-  'Cirurgia recente',
-  'Nenhuma',
-]
-
 const hasJointPain = computed(() =>
   jointPains.value.some((pain) => pain !== 'Nenhuma'),
 )
@@ -155,45 +94,34 @@ const studentDisplayName = computed(() => {
   return student.value?.name ?? 'Aluno'
 })
 
+// Link para o aluno preencher ou atualizar a própria anamnese.
+const anamnesisWhatsAppUrl = computed(() => {
+  const targetStudent = isNewStudent.value ? createdStudent.value : student.value
+
+  if (!targetStudent?.anamnesisToken) {
+    return null
+  }
+
+  try {
+    return buildAnamnesisWhatsAppUrl(
+      targetStudent.phone,
+      targetStudent.name,
+      targetStudent.anamnesisToken,
+    )
+  } catch {
+    return null
+  }
+})
+
 function toggleJointPain(pain: string) {
-  if (pain === 'Nenhuma') {
-    jointPains.value = ['Nenhuma']
-    return
-  }
-
-  const selectedWithoutNone = jointPains.value.filter(
-    (item) => item !== 'Nenhuma',
-  )
-
-  if (selectedWithoutNone.includes(pain)) {
-    const nextPains = selectedWithoutNone.filter((item) => item !== pain)
-    jointPains.value = nextPains.length > 0 ? nextPains : ['Nenhuma']
-    return
-  }
-
-  jointPains.value = [...selectedWithoutNone, pain]
+  jointPains.value = toggleJointPainSelection(jointPains.value, pain)
 }
 
 function toggleMedicalCondition(condition: string) {
-  if (condition === 'Nenhuma') {
-    medicalConditions.value = ['Nenhuma']
-    return
-  }
-
-  const selectedWithoutNone = medicalConditions.value.filter(
-    (item) => item !== 'Nenhuma',
+  medicalConditions.value = toggleMedicalConditionSelection(
+    medicalConditions.value,
+    condition,
   )
-
-  if (selectedWithoutNone.includes(condition)) {
-    const nextConditions = selectedWithoutNone.filter(
-      (item) => item !== condition,
-    )
-    medicalConditions.value =
-      nextConditions.length > 0 ? nextConditions : ['Nenhuma']
-    return
-  }
-
-  medicalConditions.value = [...selectedWithoutNone, condition]
 }
 
 function validateNewStudent(): boolean {
@@ -256,13 +184,14 @@ async function saveAnamnesisForm() {
 
   try {
     if (isNewStudent.value) {
-      const createdStudent = await createStudentWithAnamnesis({
+      const created = await createStudentWithAnamnesis({
         name: newStudentName.value,
         phone: newStudentPhone.value,
         anamnesis,
       })
 
-      savedStudentId.value = createdStudent.id
+      createdStudent.value = created
+      savedStudentId.value = created.id
     } else if (student.value) {
       await saveStudentAnamnesis(student.value.id, anamnesis)
       savedStudentId.value = student.value.id
@@ -316,6 +245,17 @@ useHead({
             {{ studentDisplayName }}
           </h1>
         </div>
+
+        <a
+          v-if="anamnesisWhatsAppUrl"
+          :href="anamnesisWhatsAppUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="icon-button shrink-0 text-success-700 hover:bg-success-50 hover:text-success-800"
+          :aria-label="`Enviar link da anamnese para ${studentDisplayName} no WhatsApp`"
+        >
+          <BaseIcon name="whatsapp" :size="20" />
+        </a>
 
         <span class="badge badge-neutral shrink-0">
           {{ currentStep + 1 }} de 3
@@ -724,6 +664,16 @@ useHead({
               Montar treino agora
               <BaseIcon name="chevron-right" :size="19" />
             </button>
+            <a
+              v-if="anamnesisWhatsAppUrl"
+              :href="anamnesisWhatsAppUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-success w-full"
+            >
+              <BaseIcon name="whatsapp" :size="18" />
+              Enviar link para o aluno
+            </a>
             <button type="button" class="btn btn-secondary w-full" @click="goToDashboard">
               Voltar aos alunos
             </button>
