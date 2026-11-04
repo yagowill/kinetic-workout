@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { PrototypeExercise } from '~/composables/usePrototypeData'
-import { MUSCLE_FILTERS } from '~/composables/usePrototypeData'
+import type { ExerciseOption } from '~/types/app.types'
+import { MUSCLE_FILTERS } from '~/utils/muscles'
 
 const props = defineProps<{
   open: boolean
-  exercises: PrototypeExercise[]
+  exercises: ExerciseOption[]
   selectedExerciseIds: string[]
 }>()
 
 const emit = defineEmits<{
   close: []
-  select: [exercise: PrototypeExercise]
+  select: [exercise: ExerciseOption]
 }>()
 
 const search = ref('')

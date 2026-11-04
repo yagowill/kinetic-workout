@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { PrototypeWorkoutItem } from '~/composables/usePrototypeData'
+import type { WorkoutItemView } from '~/types/app.types'
 
 defineProps<{
-  item: PrototypeWorkoutItem
+  item: WorkoutItemView
   completed: boolean
 }>()
 

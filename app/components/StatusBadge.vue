@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AnamnesisStatus } from '~/composables/usePrototypeData'
+import type { AnamnesisStatus } from '~/types/app.types'
 
 const props = defineProps<{
   status: AnamnesisStatus

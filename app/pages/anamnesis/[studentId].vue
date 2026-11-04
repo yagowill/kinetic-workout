@@ -1,26 +1,31 @@
 <script setup lang="ts">
-import type { PrototypeAnamnesis } from '~/composables/usePrototypeData'
+import type { StudentAnamnesisData } from '~/types/app.types'
+import {
+  createStudentWithAnamnesis,
+  getStudentDetail,
+  saveStudentAnamnesis,
+} from '~/services/studentService'
 
 const route = useRoute()
-const {
-  getStudent,
-  getAnamnesis,
-  saveAnamnesis,
-  createStudent,
-} = usePrototypeData()
 
 const studentId = computed(() => String(route.params.studentId ?? ''))
 const isNewStudent = computed(() => studentId.value === 'new')
-const student = computed(() =>
-  isNewStudent.value ? null : getStudent(studentId.value),
+
+const asyncKey = isNewStudent.value
+  ? 'new-student-anamnesis'
+  : `student-anamnesis-${studentId.value}`
+
+const { data: detail, pending, error } = await useAsyncData(asyncKey, () =>
+  isNewStudent.value ? Promise.resolve(null) : getStudentDetail(studentId.value),
 )
-const existingAnamnesis = computed(() =>
-  student.value ? getAnamnesis(student.value.id) : null,
-)
+
+const student = computed(() => detail.value?.student ?? null)
+const existingAnamnesis = computed(() => detail.value?.anamnesis ?? null)
 
 const currentStep = ref(0)
 const formError = ref('')
 const showSuccess = ref(false)
+const saving = ref(false)
 const savedStudentId = ref('')
 
 const newStudentName = ref('')
@@ -226,7 +231,7 @@ function previousStep() {
   currentStep.value = Math.max(0, currentStep.value - 1)
 }
 
-function buildAnamnesis(): PrototypeAnamnesis {
+function buildAnamnesis(): StudentAnamnesisData {
   return {
     primaryGoal: primaryGoal.value,
     experienceLevel: experienceLevel.value,
@@ -239,28 +244,39 @@ function buildAnamnesis(): PrototypeAnamnesis {
   }
 }
 
-function saveAnamnesisForm() {
+async function saveAnamnesisForm() {
   if (!validateNewStudent()) {
     currentStep.value = 0
     return
   }
 
   const anamnesis = buildAnamnesis()
+  saving.value = true
+  formError.value = ''
 
-  if (isNewStudent.value) {
-    const createdStudent = createStudent({
-      name: newStudentName.value,
-      phone: newStudentPhone.value,
-      anamnesis,
-    })
+  try {
+    if (isNewStudent.value) {
+      const createdStudent = await createStudentWithAnamnesis({
+        name: newStudentName.value,
+        phone: newStudentPhone.value,
+        anamnesis,
+      })
 
-    savedStudentId.value = createdStudent.id
-  } else if (student.value) {
-    saveAnamnesis(student.value.id, anamnesis)
-    savedStudentId.value = student.value.id
+      savedStudentId.value = createdStudent.id
+    } else if (student.value) {
+      await saveStudentAnamnesis(student.value.id, anamnesis)
+      savedStudentId.value = student.value.id
+    }
+
+    showSuccess.value = true
+  } catch (saveError) {
+    formError.value =
+      saveError instanceof Error
+        ? saveError.message
+        : 'Não foi possível salvar a anamnese. Tente novamente.'
+  } finally {
+    saving.value = false
   }
-
-  showSuccess.value = true
 }
 
 function goToWorkout() {
@@ -274,7 +290,11 @@ function goToDashboard() {
 }
 
 useHead({
-  title: isNewStudent.value ? 'Nova anamnese' : `Anamnese de ${studentDisplayName.value}`,
+  title: computed(() =>
+    isNewStudent.value
+      ? 'Nova anamnese'
+      : `Anamnese de ${studentDisplayName.value}`,
+  ),
 })
 </script>
 
@@ -304,8 +324,26 @@ useHead({
     </header>
 
     <main class="mx-auto max-w-3xl px-4 py-5">
+      <div v-if="pending" class="card p-6 text-center">
+        <p class="font-bold text-slate-700">Carregando anamnese...</p>
+        <p class="mt-1 text-sm text-slate-500">
+          Buscando os dados do aluno no Supabase.
+        </p>
+      </div>
+
+      <div v-else-if="error" class="card p-6 text-center">
+        <BaseIcon name="warning" :size="32" class="mx-auto text-warning-500" />
+        <h2 class="mt-3 text-xl font-extrabold">
+          Não foi possível carregar a anamnese
+        </h2>
+        <p class="mt-1 text-slate-600">{{ error.message }}</p>
+        <NuxtLink to="/" class="btn btn-secondary mt-5 w-full">
+          Voltar ao painel
+        </NuxtLink>
+      </div>
+
       <div
-        v-if="!isNewStudent && !student"
+        v-else-if="!isNewStudent && !student"
         class="card p-6 text-center"
       >
         <BaseIcon name="warning" :size="32" class="mx-auto text-warning-500" />
@@ -646,10 +684,11 @@ useHead({
           v-else
           type="button"
           class="btn btn-success flex-[1.5] whitespace-nowrap px-3"
+          :disabled="saving"
           @click="saveAnamnesisForm"
         >
           <BaseIcon name="check" :size="20" :stroke-width="3" />
-          Concluir anamnese
+          {{ saving ? 'Salvando...' : 'Concluir anamnese' }}
         </button>
       </div>
     </div>

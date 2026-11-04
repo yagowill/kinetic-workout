@@ -1,27 +1,63 @@
 <script setup lang="ts">
-import type { PrototypeExercise } from '~/composables/usePrototypeData'
-import { PROTOTYPE_EXERCISES } from '~/composables/usePrototypeData'
+import type { ExerciseOption, WorkoutDivisionView } from '~/types/app.types'
+import { getExerciseOptions } from '~/services/exerciseService'
+import {
+  addWorkoutItem,
+  getWorkoutEditorData,
+  removeWorkoutItem,
+  updateWorkoutItemSets,
+} from '~/services/workoutService'
 import { buildWorkoutWhatsAppUrl } from '~/services/whatsappService'
 
 const route = useRoute()
-const {
-  getStudent,
-  getDivisions,
-  addWorkoutDivision,
-  addExerciseToDivision,
-  removeExerciseFromDivision,
-  updateExerciseSets,
-} = usePrototypeData()
-
 const studentId = String(route.params.studentId ?? '')
-const student = getStudent(studentId)
-const divisionList = student ? getDivisions(studentId) : []
 
-const activeDivisionId = ref(divisionList[0]?.id ?? 'A')
+const { data, pending, error, refresh } = await useAsyncData(
+  `workout-editor-${studentId}`,
+  async () => {
+    const [editor, exercises] = await Promise.all([
+      getWorkoutEditorData(studentId),
+      getExerciseOptions().catch(() => [] as ExerciseOption[]),
+    ])
+
+    return { editor, exercises }
+  },
+)
+
+const editor = computed(() => data.value?.editor ?? null)
+const student = computed(() => editor.value?.student ?? null)
+const anamnesis = computed(() => editor.value?.anamnesis ?? null)
+const plan = computed(() => editor.value?.plan ?? null)
+const exerciseOptions = computed<ExerciseOption[]>(
+  () => data.value?.exercises ?? [],
+)
+
+const divisions = ref<WorkoutDivisionView[]>([])
+const activeDivisionId = ref('A')
+
+watchEffect(() => {
+  if (!editor.value) {
+    return
+  }
+
+  divisions.value = editor.value.divisions.map((division) => ({
+    ...division,
+    items: [...division.items],
+  }))
+
+  if (
+    !divisions.value.some((division) => division.id === activeDivisionId.value)
+  ) {
+    activeDivisionId.value = divisions.value[0]?.id ?? 'A'
+  }
+})
+
 const activeDivision = computed(
   () =>
-    divisionList.find((division) => division.id === activeDivisionId.value) ??
-    divisionList[0] ??
+    divisions.value.find(
+      (division) => division.id === activeDivisionId.value,
+    ) ??
+    divisions.value[0] ??
     null,
 )
 
@@ -39,13 +75,13 @@ const toast = reactive<{
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 const hasJointPain = computed(
-  () => (student?.jointPains.length ?? 0) > 0,
+  () => (anamnesis.value?.jointPains.length ?? 0) > 0,
 )
 const painSummary = computed(
-  () => student?.jointPains.join(' e ').toLowerCase() ?? '',
+  () => anamnesis.value?.jointPains.join(' e ').toLowerCase() ?? '',
 )
 const selectedExerciseIds = computed(
-  () => activeDivision.value?.items.map((item) => item.id) ?? [],
+  () => activeDivision.value?.items.map((item) => item.exerciseId) ?? [],
 )
 
 function showToast(message: string, tone: 'success' | 'info' = 'success') {
@@ -73,14 +109,15 @@ function handleTabKeydown(event: KeyboardEvent, currentIndex: number) {
 
   event.preventDefault()
 
-  if (divisionList.length === 0) {
+  if (divisions.value.length === 0) {
     return
   }
 
   const direction = event.key === 'ArrowRight' ? 1 : -1
   const nextIndex =
-    (currentIndex + direction + divisionList.length) % divisionList.length
-  const nextDivision = divisionList[nextIndex]
+    (currentIndex + direction + divisions.value.length) %
+    divisions.value.length
+  const nextDivision = divisions.value[nextIndex]
 
   if (!nextDivision) {
     return
@@ -93,65 +130,106 @@ function handleTabKeydown(event: KeyboardEvent, currentIndex: number) {
   })
 }
 
+function nextSessionLabel(existingLabels: string[]): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+  for (const letter of alphabet) {
+    if (!existingLabels.includes(letter)) {
+      return letter
+    }
+  }
+
+  return `S${existingLabels.length + 1}`
+}
+
 function createDivision() {
-  const division = addWorkoutDivision(studentId)
-  activeDivisionId.value = division.id
-  showToast(`${division.label} criada. Adicione os exercícios.`, 'info')
-}
-
-function handleSelectExercise(exercise: PrototypeExercise) {
-  if (!activeDivision.value) {
-    return
-  }
-
-  const added = addExerciseToDivision(
-    studentId,
-    activeDivision.value.id,
-    exercise,
+  const nextLabel = nextSessionLabel(
+    divisions.value.map((division) => division.id),
   )
 
-  if (!added) {
-    showToast(`${exercise.name} já está neste treino.`, 'info')
-    return
-  }
-
-  showToast(`${exercise.name} adicionado ao ${activeDivision.value.label}.`)
+  divisions.value.push({
+    id: nextLabel,
+    label: `Treino ${nextLabel}`,
+    focus: 'Nova divisão',
+    items: [],
+  })
+  activeDivisionId.value = nextLabel
+  showToast(`Treino ${nextLabel} criado. Adicione os exercícios.`, 'info')
 }
 
-function handleRemoveExercise(exerciseId: string) {
-  if (!activeDivision.value) {
+async function handleSelectExercise(exercise: ExerciseOption) {
+  if (!activeDivision.value || !plan.value) {
     return
   }
 
-  removeExerciseFromDivision(studentId, activeDivision.value.id, exerciseId)
-  showToast('Exercício removido do treino.', 'info')
+  const divisionLabel = activeDivision.value.label
+
+  try {
+    await addWorkoutItem(plan.value.id, activeDivision.value.id, exercise)
+    showToast(`${exercise.name} adicionado ao ${divisionLabel}.`)
+    await refresh()
+  } catch (selectError) {
+    showToast(
+      selectError instanceof Error
+        ? selectError.message
+        : 'Não foi possível adicionar o exercício.',
+      'info',
+    )
+  }
 }
 
-function handleUpdateSets(exerciseId: string, nextSets: number) {
-  if (!activeDivision.value) {
-    return
+async function handleRemoveExercise(itemId: string) {
+  try {
+    await removeWorkoutItem(itemId)
+    showToast('Exercício removido do treino.', 'info')
+    await refresh()
+  } catch (removeError) {
+    showToast(
+      removeError instanceof Error
+        ? removeError.message
+        : 'Não foi possível remover o exercício.',
+      'info',
+    )
   }
+}
 
-  updateExerciseSets(
-    studentId,
-    activeDivision.value.id,
-    exerciseId,
-    nextSets,
+async function handleUpdateSets(itemId: string, nextSets: number) {
+  const item = activeDivision.value?.items.find(
+    (exercise) => exercise.id === itemId,
   )
+
+  if (!item) {
+    return
+  }
+
+  const previousSets = item.sets
+  item.sets = Math.min(10, Math.max(1, nextSets))
+
+  try {
+    await updateWorkoutItemSets(itemId, item.sets)
+  } catch (updateError) {
+    item.sets = previousSets
+    showToast(
+      updateError instanceof Error
+        ? updateError.message
+        : 'Não foi possível atualizar as séries.',
+      'info',
+    )
+  }
 }
 
 function sendWhatsApp() {
-  if (!student || !activeDivision.value) {
+  if (!student.value || !activeDivision.value || !plan.value) {
     return
   }
 
   try {
-    const planTitle = `${activeDivision.value.label} · ${student.goal}`
+    const planTitle = `${activeDivision.value.label} · ${student.value.goal}`
     const whatsappUrl = buildWorkoutWhatsAppUrl(
-      student.phone,
-      student.name,
+      student.value.phone,
+      student.value.name,
       planTitle,
-      student.accessToken,
+      plan.value.access_token,
     )
 
     showToast('Link do WhatsApp gerado com sucesso.')
@@ -159,10 +237,10 @@ function sendWhatsApp() {
     if (typeof window !== 'undefined') {
       window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
     }
-  } catch (error) {
+  } catch (whatsappError) {
     showToast(
-      error instanceof Error
-        ? error.message
+      whatsappError instanceof Error
+        ? whatsappError.message
         : 'Não foi possível gerar o link do WhatsApp.',
       'info',
     )
@@ -176,7 +254,9 @@ onBeforeUnmount(() => {
 })
 
 useHead({
-  title: student ? `Treino de ${student.name}` : 'Criador de treino',
+  title: computed(() =>
+    student.value ? `Treino de ${student.value.name}` : 'Criador de treino',
+  ),
 })
 </script>
 
@@ -201,7 +281,7 @@ useHead({
           </div>
 
           <span v-if="student" class="badge badge-neutral shrink-0">
-            {{ divisionList.length }} divisões
+            {{ divisions.length }} divisões
           </span>
         </div>
 
@@ -235,7 +315,7 @@ useHead({
             aria-label="Divisões do treino"
           >
             <button
-              v-for="(division, index) in divisionList"
+              v-for="(division, index) in divisions"
               :id="`division-tab-${division.id}`"
               :key="division.id"
               type="button"
@@ -269,7 +349,25 @@ useHead({
     </header>
 
     <main class="mx-auto max-w-4xl px-4 py-4">
-      <div v-if="!student" class="card p-6 text-center">
+      <div v-if="pending" class="card p-6 text-center">
+        <p class="font-bold text-slate-700">Carregando treino...</p>
+        <p class="mt-1 text-sm text-slate-500">
+          Buscando aluno, anamnese e exercícios.
+        </p>
+      </div>
+
+      <div v-else-if="error" class="card p-6 text-center">
+        <BaseIcon name="warning" :size="32" class="mx-auto text-warning-500" />
+        <h2 class="mt-3 text-xl font-extrabold">
+          Não foi possível carregar o treino
+        </h2>
+        <p class="mt-1 text-slate-600">{{ error.message }}</p>
+        <button type="button" class="btn btn-secondary mt-5 w-full" @click="refresh()">
+          Tentar novamente
+        </button>
+      </div>
+
+      <div v-else-if="!student" class="card p-6 text-center">
         <BaseIcon name="warning" :size="32" class="mx-auto text-warning-500" />
         <h2 class="mt-3 text-xl font-extrabold">Aluno não encontrado</h2>
         <p class="mt-1 text-slate-600">
@@ -353,7 +451,7 @@ useHead({
         <button
           type="button"
           class="btn btn-success w-full text-lg"
-          :disabled="!student || !activeDivision"
+          :disabled="!student || !activeDivision || !plan"
           @click="sendWhatsApp"
         >
           <BaseIcon name="whatsapp" :size="23" />
@@ -367,7 +465,7 @@ useHead({
 
     <ExercisePickerDrawer
       :open="pickerOpen"
-      :exercises="PROTOTYPE_EXERCISES"
+      :exercises="exerciseOptions"
       :selected-exercise-ids="selectedExerciseIds"
       @close="pickerOpen = false"
       @select="handleSelectExercise"

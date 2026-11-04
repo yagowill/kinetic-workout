@@ -1,6 +1,9 @@
 // Service responsável por consumir e filtrar a base pública de exercícios.
 // O cache em memória evita requisições repetidas à API durante a sessão.
 
+import type { ExerciseOption } from '~/types/app.types'
+import { resolveMuscle } from '~/utils/muscles'
+
 // Repositório oficial da API:
 // https://github.com/JahelCuadrado/ExerciseGymGifsDB
 //
@@ -285,4 +288,22 @@ export async function searchExercises(
 export function clearExerciseCache(): void {
   exerciseCache = null;
   pendingExercisesRequest = null;
+}
+
+// Converte a lista da API para o formato enxuto usado pelo seletor de treino.
+export async function getExerciseOptions(): Promise<ExerciseOption[]> {
+  const exercises = await getExercises();
+
+  return exercises.map((exercise) => {
+    const muscle = resolveMuscle(exercise.targetMuscle);
+
+    return {
+      id: exercise.id,
+      name: exercise.name,
+      targetMuscle: exercise.targetMuscle,
+      muscleGroup: muscle.group,
+      muscleLabel: muscle.label,
+      gifUrl: exercise.gifUrl,
+    };
+  });
 }

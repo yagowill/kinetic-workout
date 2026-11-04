@@ -102,7 +102,7 @@ export interface Database {
           id?: string;
           student_id: string;
           title: string;
-          access_token: string;
+          access_token?: string;
           is_active?: boolean;
           created_at?: string;
         };

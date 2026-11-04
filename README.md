@@ -18,7 +18,7 @@ O Kinetic foi desenhado para reduzir digitação e decisões complexas:
 - Alertas clínicos visíveis durante a montagem do treino.
 - Link público e seguro para o aluno abrir o treino no celular.
 
-> **Status:** protótipo funcional. As telas usam dados mockados em `usePrototypeData`; a integração real com o Supabase já está preparada no schema, nos tipos e nos serviços.
+> **Status:** funcional com dados reais. O personal trainer autentica com e-mail e senha, e as telas leem e gravam alunos, anamneses e treinos no Supabase.
 
 ## Funcionalidades
 
@@ -37,15 +37,28 @@ O Kinetic foi desenhado para reduzir digitação e decisões complexas:
 
 ## Telas e rotas
 
-| Rota | Descrição |
-| --- | --- |
-| `/` | Dashboard do personal |
-| `/anamnesis/new` | Cadastro de aluno + anamnese |
-| `/anamnesis/[studentId]` | Anamnese de um aluno existente |
-| `/workout/[studentId]` | Criador de treino |
-| `/t/[accessToken]` | PWA do aluno (modo escuro) |
+| Rota | Acesso | Descrição |
+| --- | --- | --- |
+| `/login` | Público | Entrada e criação de conta do personal |
+| `/` | Autenticado | Dashboard do personal |
+| `/anamnesis/new` | Autenticado | Cadastro de aluno + anamnese |
+| `/anamnesis/[studentId]` | Autenticado | Anamnese de um aluno existente |
+| `/workout/[studentId]` | Autenticado | Criador de treino |
+| `/t/[accessToken]` | Público | PWA do aluno (modo escuro) |
 
-Tokens de demonstração: `demo-mariana`, `demo-joao`, `demo-ana`, `demo-carlos`.
+O acesso do aluno usa o `access_token` gerado pelo banco. Não há login para o aluno: o link enviado pelo WhatsApp é a credencial.
+
+## Autenticação e dados reais
+
+O middleware global `app/middleware/auth.global.ts` protege as rotas do personal e libera apenas `/login` e `/t/*`.
+
+- Crie a conta em `/login` com e-mail e senha.
+- Se a confirmação de e-mail estiver ativa no Supabase, confirme o cadastro antes de entrar.
+- Cada aluno é vinculado ao `personal_id` do usuário autenticado.
+- As políticas de RLS garantem que cada personal veja somente a própria carteira.
+- Alunos, anamneses e treinos são lidos e gravados pelos services em `app/services/`.
+
+Para popular a aplicação, basta cadastrar alunos pela própria interface. Não há mais dados mockados no código.
 
 ## Design System
 
@@ -103,9 +116,18 @@ supabase/migrations/20261104000000_create_workout_platform_schema.sql
 
 Ela cria as tabelas, políticas de RLS, leitura pública por token e a RPC transacional `duplicate_workout_plan`.
 
-Aplique com a CLI do Supabase:
+A migration complementar está em:
+
+```text
+supabase/migrations/20261104000001_add_student_name_to_public_workout_plan.sql
+```
+
+Ela adiciona o nome do aluno ao retorno público da RPC `get_public_workout_plan`, usado pela PWA.
+
+Aplique as migrations com a CLI do Supabase:
 
 ```bash
+supabase link --project-ref <seu-project-ref>
 supabase db push
 ```
 
@@ -115,10 +137,11 @@ supabase db push
 app/
   actions/       # regras de negócio de treino
   components/    # componentes reutilizáveis
-  composables/   # dados mockados do protótipo
-  pages/         # rotas das quatro telas
-  services/      # exercícios e WhatsApp
-  types/         # tipos do banco
+  middleware/    # proteção de rotas do personal
+  pages/         # login, dashboard, anamnese, treino e PWA
+  services/      # Supabase, exercícios e WhatsApp
+  types/         # tipos do banco e da interface
+  utils/         # tradução de grupos musculares
 supabase/
   migrations/    # schema, RLS e RPC
 tailwind.config.ts
@@ -132,10 +155,9 @@ Os GIFs vêm do repositório `ExerciseGymGifsDB`, fixados na versão `v1.1.0` vi
 
 ## Próximos passos
 
-- Conectar as telas ao Supabase em vez dos dados mockados.
 - Persistir a conclusão dos exercícios na PWA.
-- Adicionar autenticação do personal trainer.
 - Criar testes de fluxo para anamnese e montagem de treino.
+- Permitir editar reps e descanso dos exercícios no criador de treino.
 
 ## Licença
 

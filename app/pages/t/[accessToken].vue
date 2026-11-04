@@ -1,18 +1,43 @@
 <script setup lang="ts">
+import type { WorkoutDivisionView } from '~/types/app.types'
+import { getPublicWorkoutPlan } from '~/services/workoutService'
+
 const route = useRoute()
-const { getStudentByAccessToken, getDivisions } = usePrototypeData()
-
 const accessToken = String(route.params.accessToken ?? '')
-const student = getStudentByAccessToken(accessToken)
-const divisionList = student ? getDivisions(student.id) : []
 
-const activeDivisionId = ref(divisionList[0]?.id ?? 'A')
+const { data, pending, error } = await useAsyncData(
+  `public-workout-${accessToken}`,
+  () => getPublicWorkoutPlan(accessToken),
+)
+
+const studentName = computed(() => data.value?.studentName ?? 'Aluno')
+const divisionList = computed<WorkoutDivisionView[]>(
+  () => data.value?.divisions ?? [],
+)
+
+const activeDivisionId = ref('A')
 const activeDivision = computed(
   () =>
-    divisionList.find((division) => division.id === activeDivisionId.value) ??
-    divisionList[0] ??
+    divisionList.value.find(
+      (division) => division.id === activeDivisionId.value,
+    ) ??
+    divisionList.value[0] ??
     null,
 )
+
+watchEffect(() => {
+  if (divisionList.value.length === 0) {
+    return
+  }
+
+  if (
+    !divisionList.value.some(
+      (division) => division.id === activeDivisionId.value,
+    )
+  ) {
+    activeDivisionId.value = divisionList.value[0]?.id ?? 'A'
+  }
+})
 
 const completedByDivision = reactive<Record<string, string[]>>({})
 const completionDialogOpen = ref(false)
@@ -87,14 +112,15 @@ function handleTabKeydown(event: KeyboardEvent, currentIndex: number) {
 
   event.preventDefault()
 
-  if (divisionList.length === 0) {
+  if (divisionList.value.length === 0) {
     return
   }
 
   const direction = event.key === 'ArrowRight' ? 1 : -1
   const nextIndex =
-    (currentIndex + direction + divisionList.length) % divisionList.length
-  const nextDivision = divisionList[nextIndex]
+    (currentIndex + direction + divisionList.value.length) %
+    divisionList.value.length
+  const nextDivision = divisionList.value[nextIndex]
 
   if (!nextDivision) {
     return
@@ -125,10 +151,6 @@ function finishWorkout() {
   completionDialogOpen.value = true
 }
 
-function goToDashboard() {
-  navigateTo('/')
-}
-
 onBeforeUnmount(() => {
   if (toastTimer) {
     clearTimeout(toastTimer)
@@ -136,7 +158,7 @@ onBeforeUnmount(() => {
 })
 
 useHead({
-  title: student ? `Treino de ${student.name}` : 'Meu treino',
+  title: computed(() => `Treino de ${studentName.value}`),
   meta: [{ name: 'theme-color', content: '#0f172a' }],
 })
 </script>
@@ -155,18 +177,10 @@ useHead({
                 Meu treino
               </p>
               <h1 class="truncate text-lg font-extrabold text-white">
-                {{ student?.name ?? 'Aluno' }}
+                {{ studentName }}
               </h1>
             </div>
           </div>
-
-          <NuxtLink
-            to="/"
-            class="flex min-h-12 min-w-12 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-900 hover:text-white"
-            aria-label="Sair da prévia e voltar ao painel"
-          >
-            <BaseIcon name="logout" :size="21" />
-          </NuxtLink>
         </div>
 
         <div class="mt-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
@@ -187,7 +201,22 @@ useHead({
     </header>
 
     <main class="mx-auto max-w-md px-4 py-4">
-      <div v-if="!student" class="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
+      <div v-if="pending" class="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
+        <p class="font-bold text-slate-300">Carregando treino...</p>
+        <p class="mt-1 text-sm text-slate-400">
+          Buscando seu plano no servidor.
+        </p>
+      </div>
+
+      <div v-else-if="error" class="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
+        <BaseIcon name="warning" :size="32" class="mx-auto text-warning-400" />
+        <h2 class="mt-3 text-xl font-extrabold text-white">
+          Não foi possível carregar
+        </h2>
+        <p class="mt-1 text-sm text-slate-400">{{ error.message }}</p>
+      </div>
+
+      <div v-else-if="!data" class="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
         <BaseIcon name="warning" :size="32" class="mx-auto text-warning-400" />
         <h2 class="mt-3 text-xl font-extrabold text-white">Treino não encontrado</h2>
         <p class="mt-1 text-sm text-slate-400">
@@ -324,20 +353,13 @@ useHead({
             {{ activeDivision?.label }}. Excelente trabalho!
           </p>
 
-          <div class="mt-5 grid gap-2">
+          <div class="mt-5">
             <button
               type="button"
               class="btn btn-success w-full"
               @click="completionDialogOpen = false"
             >
               Voltar ao treino
-            </button>
-            <button
-              type="button"
-              class="btn w-full border border-slate-700 bg-slate-800 text-white hover:bg-slate-700"
-              @click="goToDashboard"
-            >
-              Sair da prévia
             </button>
           </div>
         </div>

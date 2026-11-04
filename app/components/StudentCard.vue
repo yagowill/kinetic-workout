@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { PrototypeStudent } from '~/composables/usePrototypeData'
+import type { StudentSummary } from '~/types/app.types'
 
 const props = defineProps<{
-  student: PrototypeStudent
+  student: StudentSummary
 }>()
 
 const initials = computed(() =>

@@ -1,13 +1,55 @@
 <script setup lang="ts">
-const { students } = usePrototypeData()
+import type { StudentSummary } from '~/types/app.types'
+import { listStudentSummaries } from '~/services/studentService'
+
+const user = useSupabaseUser()
+const client = useSupabaseClient()
+
+const { data, pending, error, refresh } = await useAsyncData(
+  'student-summaries',
+  () => listStudentSummaries(),
+)
+
+const students = computed<StudentSummary[]>(() => data.value ?? [])
 
 const pendingAnamneses = computed(
-  () => students.value.filter((student) => student.anamnesisStatus === 'pending').length,
+  () =>
+    students.value.filter(
+      (student) => student.anamnesisStatus === 'pending',
+    ).length,
 )
 
 const studentsWithPain = computed(
-  () => students.value.filter((student) => student.jointPains.length > 0).length,
+  () =>
+    students.value.filter((student) => student.jointPains.length > 0).length,
 )
+
+const displayName = computed(() => {
+  const metadataName = user.value?.user_metadata?.name
+
+  if (typeof metadataName === 'string' && metadataName.trim().length > 0) {
+    return metadataName.trim()
+  }
+
+  const email = user.value?.email ?? ''
+  const prefix = email.split('@')[0] ?? ''
+
+  return prefix
+    ? prefix.charAt(0).toUpperCase() + prefix.slice(1)
+    : 'Personal'
+})
+
+const userInitial = computed(() => displayName.value.charAt(0).toUpperCase())
+
+const previewToken = computed(
+  () =>
+    students.value.find((student) => student.accessToken)?.accessToken ?? null,
+)
+
+async function logout() {
+  await client.auth.signOut()
+  await navigateTo('/login')
+}
 
 useHead({
   title: 'Painel do personal',
@@ -20,9 +62,10 @@ useHead({
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 pt-safe">
         <AppBrand />
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5">
           <NuxtLink
-            to="/t/demo-mariana"
+            v-if="previewToken"
+            :to="`/t/${previewToken}`"
             class="icon-button sm:hidden"
             aria-label="Abrir prévia da visão do aluno"
           >
@@ -30,7 +73,8 @@ useHead({
           </NuxtLink>
 
           <NuxtLink
-            to="/t/demo-mariana"
+            v-if="previewToken"
+            :to="`/t/${previewToken}`"
             class="btn btn-secondary hidden sm:inline-flex"
             aria-label="Abrir prévia da visão do aluno"
           >
@@ -38,11 +82,20 @@ useHead({
             Prévia do aluno
           </NuxtLink>
 
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Sair da conta"
+            @click="logout"
+          >
+            <BaseIcon name="logout" :size="20" />
+          </button>
+
           <div
             class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-extrabold text-white"
             aria-hidden="true"
           >
-            R
+            {{ userInitial }}
           </div>
         </div>
       </div>
@@ -52,7 +105,7 @@ useHead({
       <section>
         <p class="eyebrow">Seu painel de treinos</p>
         <h1 class="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-          Olá, Rafael
+          Olá, {{ displayName }}
         </h1>
         <p class="mt-2 max-w-2xl text-base font-medium text-slate-600">
           Escolha um aluno para montar o treino ou atualizar a anamnese.
@@ -109,7 +162,37 @@ useHead({
           <span class="badge badge-neutral">{{ students.length }} ativos</span>
         </div>
 
-        <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div v-if="pending" class="card mt-3 p-6 text-center">
+          <p class="font-bold text-slate-700">Carregando alunos...</p>
+          <p class="mt-1 text-sm text-slate-500">
+            Buscando sua carteira no Supabase.
+          </p>
+        </div>
+
+        <div v-else-if="error" class="card mt-3 p-6 text-center">
+          <BaseIcon name="warning" :size="32" class="mx-auto text-warning-500" />
+          <p class="mt-3 font-bold text-slate-700">
+            Não foi possível carregar seus alunos
+          </p>
+          <p class="mt-1 text-sm text-slate-500">{{ error.message }}</p>
+          <button type="button" class="btn btn-secondary mt-4" @click="refresh()">
+            Tentar novamente
+          </button>
+        </div>
+
+        <div v-else-if="students.length === 0" class="card mt-3 p-6 text-center">
+          <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 text-brand-700">
+            <BaseIcon name="users" :size="26" />
+          </span>
+          <p class="mt-3 text-lg font-extrabold text-slate-900">
+            Nenhum aluno cadastrado
+          </p>
+          <p class="mt-1 text-sm text-slate-500">
+            Toque em “Cadastrar Novo Aluno” para começar.
+          </p>
+        </div>
+
+        <div v-else class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <StudentCard
             v-for="student in students"
             :key="student.id"
