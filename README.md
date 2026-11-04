@@ -1,75 +1,142 @@
-# Nuxt Minimal Starter
+# Kinetic Workout
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Plataforma **mobile-first** para personal trainers de baixa habilidade tecnológica montarem, adaptarem e compartilharem treinos com alunos pelo WhatsApp.
 
-## Setup
+O projeto combina um painel simples para o personal, uma anamnese guiada por toques e uma PWA em modo escuro para o aluno acompanhar o treino do dia.
 
-Make sure to install dependencies:
+[![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white)](https://nuxt.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+
+## Sobre
+
+O Kinetic foi desenhado para reduzir digitação e decisões complexas:
+
+- Botões e áreas de toque com no mínimo **48px**.
+- Navegação por cards, chips e abas.
+- Alertas clínicos visíveis durante a montagem do treino.
+- Link público e seguro para o aluno abrir o treino no celular.
+
+> **Status:** protótipo funcional. As telas usam dados mockados em `usePrototypeData`; a integração real com o Supabase já está preparada no schema, nos tipos e nos serviços.
+
+## Funcionalidades
+
+- **Dashboard do personal:** carteira de alunos, status da anamnese, alertas de dor e cadastro de novo aluno.
+- **Anamnese em 3 passos:** objetivo, rotina e saúde, com seleção múltipla de dores e condições médicas.
+- **Criador de treino:** banner fixo de lesão, divisões (Treino A, B, C…), busca de exercícios por grupo muscular, preview em GIF e ajuste de séries sem digitar.
+- **PWA do aluno:** modo escuro, progresso do treino, cards com GIF e checkbox gigante de conclusão.
+- **Compartilhamento:** geração de link `wa.me` com mensagem pronta e token público do plano.
+
+## Stack
+
+- [Nuxt 4](https://nuxt.com) + Vue 3 + TypeScript
+- [Tailwind CSS 3](https://tailwindcss.com) com tokens próprios
+- [Supabase](https://supabase.com) (Postgres, RLS e RPC transacional)
+- [ExerciseGymGifsDB](https://github.com/JahelCuadrado/ExerciseGymGifsDB) para os GIFs dos exercícios
+
+## Telas e rotas
+
+| Rota | Descrição |
+| --- | --- |
+| `/` | Dashboard do personal |
+| `/anamnesis/new` | Cadastro de aluno + anamnese |
+| `/anamnesis/[studentId]` | Anamnese de um aluno existente |
+| `/workout/[studentId]` | Criador de treino |
+| `/t/[accessToken]` | PWA do aluno (modo escuro) |
+
+Tokens de demonstração: `demo-mariana`, `demo-joao`, `demo-ana`, `demo-carlos`.
+
+## Design System
+
+Os tokens ficam em `tailwind.config.ts` e os estilos reutilizáveis em `app/assets/css/main.css`.
+
+- Neutros em **slate**.
+- Primária em **indigo** (`brand`).
+- Sucesso em **verde** (`success`), usado em WhatsApp e conclusão.
+- Alertas em **âmbar** (`warning`) e **vermelho** (`danger`).
+- Tipografia sans-serif com títulos em negrito.
+- Classes utilitárias: `.btn`, `.card`, `.chip`, `.badge`, `.input`, `.pb-safe`.
+
+A especificação completa está em [`DESIGN.md`](./DESIGN.md).
+
+## Como rodar
+
+Requisitos: Node.js 20+ e npm.
 
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+Acesse `http://localhost:3000`.
 
-Build the application for production:
+### Scripts
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+npm run dev        # ambiente de desenvolvimento
+npm run build      # build de produção
+npm run preview    # prévia do build
+npm run generate   # geração estática
+npx nuxi typecheck # verificação de tipos
 ```
 
-Locally preview production build:
+## Variáveis de ambiente
+
+Copie `.env.example` para `.env` e preencha:
 
 ```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
+NUXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+NUXT_PUBLIC_SUPABASE_KEY=sua-chave-anon
+NUXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Sem credenciais, o projeto usa um fallback de prévia visual definido em `nuxt.config.ts`. **Não use esse fallback em produção.**
+
+## Banco de dados
+
+A migration inicial está em:
+
+```text
+supabase/migrations/20261104000000_create_workout_platform_schema.sql
+```
+
+Ela cria as tabelas, políticas de RLS, leitura pública por token e a RPC transacional `duplicate_workout_plan`.
+
+Aplique com a CLI do Supabase:
+
+```bash
+supabase db push
+```
+
+## Estrutura do projeto
+
+```text
+app/
+  actions/       # regras de negócio de treino
+  components/    # componentes reutilizáveis
+  composables/   # dados mockados do protótipo
+  pages/         # rotas das quatro telas
+  services/      # exercícios e WhatsApp
+  types/         # tipos do banco
+supabase/
+  migrations/    # schema, RLS e RPC
+tailwind.config.ts
+nuxt.config.ts
+DESIGN.md
+```
+
+## Exercícios
+
+Os GIFs vêm do repositório `ExerciseGymGifsDB`, fixados na versão `v1.1.0` via jsDelivr. O serviço em `app/services/exerciseService.ts` consome `api/<lang>/exercises.json` e permite busca e filtro por grupo muscular.
+
+## Próximos passos
+
+- Conectar as telas ao Supabase em vez dos dados mockados.
+- Persistir a conclusão dos exercícios na PWA.
+- Adicionar autenticação do personal trainer.
+- Criar testes de fluxo para anamnese e montagem de treino.
+
+## Licença
+
+Projeto privado. Todos os direitos reservados.
