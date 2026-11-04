@@ -5,6 +5,7 @@
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import type { Database, ExerciseGifOverrideRow } from '~/types/database.types'
 import type { ExerciseGifOverride, ExerciseOption } from '~/types/app.types'
+import { translateExerciseName } from '~/utils/exerciseNames'
 import { getExerciseOptions } from './exerciseService'
 
 const STORAGE_BUCKET = 'exercise-gifs'
@@ -26,7 +27,7 @@ const MIME_EXTENSIONS: Record<string, string> = {
 function mapOverride(row: ExerciseGifOverrideRow): ExerciseGifOverride {
   return {
     exerciseId: row.external_exercise_id,
-    exerciseName: row.exercise_name,
+    exerciseName: translateExerciseName(row.exercise_name),
     gifUrl: row.gif_url,
     storagePath: row.storage_path,
     updatedAt: row.updated_at,

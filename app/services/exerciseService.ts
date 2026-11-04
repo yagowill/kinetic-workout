@@ -3,6 +3,7 @@
 
 import type { ExerciseOption } from '~/types/app.types'
 import { resolveMuscle } from '~/utils/muscles'
+import { translateExerciseName } from '~/utils/exerciseNames'
 
 // Repositório oficial da API:
 // https://github.com/JahelCuadrado/ExerciseGymGifsDB
@@ -115,7 +116,8 @@ function extractRawExercises(payload: unknown): RawExercise[] {
 }
 
 function normalizeExercise(rawExercise: RawExercise, index: number): Exercise | null {
-  const name = readString(rawExercise.name);
+  const rawName = readString(rawExercise.name)
+  const name = rawName ? translateExerciseName(rawName) : null
   const gifUrl =
     readString(rawExercise.gifUrl) ??
     readString(rawExercise.gif_url) ??

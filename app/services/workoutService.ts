@@ -13,6 +13,7 @@ import type {
   WorkoutItemView,
 } from '~/types/app.types'
 import { resolveMuscle } from '~/utils/muscles'
+import { translateExerciseName } from '~/utils/exerciseNames'
 import { listExerciseGifOverrides } from './exerciseGifService'
 import { getStudentDetail } from './studentService'
 
@@ -28,7 +29,7 @@ function mapWorkoutItem(
   return {
     id: row.id,
     exerciseId: row.external_exercise_id,
-    name: row.exercise_name,
+    name: translateExerciseName(row.exercise_name),
     muscleGroup: muscle.group,
     muscleLabel: muscle.label,
     gifUrl: overrideGifUrl ?? row.gif_url,
