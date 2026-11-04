@@ -79,6 +79,9 @@ const activeDivision = computed(
     divisions.value[0] ??
     null,
 )
+const exerciseCount = computed(
+  () => divisions.value.reduce((total, division) => total + division.items.length, 0),
+)
 
 const pickerOpen = ref(false)
 const gifDialogOpen = ref(false)
@@ -439,6 +442,13 @@ useHead({
       </div>
 
       <template v-else-if="activeDivision">
+        <WorkoutTemplatePanel
+          v-if="plan"
+          :plan-id="plan.id"
+          :exercise-count="exerciseCount"
+          @applied="refresh"
+        />
+
         <section class="mb-4 flex items-end justify-between gap-3">
           <div class="min-w-0">
             <p class="eyebrow">{{ activeDivision.label }}</p>

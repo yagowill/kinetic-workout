@@ -23,9 +23,11 @@ O Kinetic foi desenhado para reduzir digitação e decisões complexas:
 ## Funcionalidades
 
 - **Dashboard do personal:** carteira de alunos, status da anamnese, alertas de dor e cadastro de novo aluno.
+- **Cadastro sem anamnese manual:** o personal cadastra nome e WhatsApp, e envia ao aluno o link individual para responder.
 - **Anamnese em 3 passos:** objetivo, rotina e saúde, com seleção múltipla de dores e condições médicas.
 - **Anamnese pelo aluno:** link no WhatsApp, formulário público em tema claro e respostas que podem ser atualizadas depois.
 - **Criador de treino:** banner fixo de lesão, divisões (Treino A, B, C…), busca de exercícios por grupo muscular, preview em GIF e ajuste de séries sem digitar.
+- **Modelos reutilizáveis:** salve um treino completo como modelo e aplique em outros alunos, mantendo o link de treino de cada um.
 - **PWA do aluno:** modo escuro, progresso do treino, cards com GIF e checkbox gigante de conclusão.
 - **GIFs personalizados:** troca do GIF de um exercício por upload ou URL, valendo para todos os treinos do personal.
 - **Compartilhamento:** geração de link `wa.me` com mensagem pronta e token público do plano.
@@ -155,6 +157,14 @@ supabase/migrations/20261104000004_add_public_anamnesis.sql
 ```
 
 Ela adiciona `students.anamnesis_token` e as RPCs `get_public_anamnesis` e `save_public_anamnesis`, usadas pelo formulário público do aluno.
+
+A migration dos modelos de treino está em:
+
+```text
+supabase/migrations/20261104000005_create_workout_templates.sql
+```
+
+Ela cria modelos isolados por personal e as RPCs para salvar um treino como modelo ou copiá-lo para um aluno.
 
 Aplique as migrations com a CLI do Supabase:
 

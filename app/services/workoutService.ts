@@ -11,6 +11,7 @@ import type {
   WorkoutDivisionView,
   WorkoutEditorData,
   WorkoutItemView,
+  WorkoutTemplate,
 } from '~/types/app.types'
 import { resolveMuscle } from '~/utils/muscles'
 import { translateExerciseName } from '~/utils/exerciseNames'
@@ -19,6 +20,68 @@ import { getStudentDetail } from './studentService'
 
 // Divisões mínimas exibidas mesmo quando o plano ainda está vazio.
 const DEFAULT_SESSION_LABELS = ['A', 'B', 'C']
+
+export async function listWorkoutTemplates(): Promise<WorkoutTemplate[]> {
+  const client = useSupabaseClient<Database>()
+  const { data, error } = await client
+    .from('workout_templates')
+    .select('id, title, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new Error(`Não foi possível carregar os modelos: ${error.message}`)
+  }
+
+  return (data ?? []).map((template) => ({
+    id: template.id,
+    title: template.title,
+    createdAt: template.created_at,
+  }))
+}
+
+export async function saveWorkoutTemplate(
+  planId: string,
+  title: string,
+): Promise<void> {
+  const client = useSupabaseClient<Database>()
+  const { error } = await client.rpc('save_workout_template', {
+    p_source_plan_id: planId,
+    p_title: title.trim(),
+  })
+
+  if (error) {
+    throw new Error(`Não foi possível salvar o modelo: ${error.message}`)
+  }
+}
+
+export async function applyWorkoutTemplate(
+  templateId: string,
+  planId: string,
+): Promise<void> {
+  const client = useSupabaseClient<Database>()
+  const { data, error } = await client.rpc('apply_workout_template', {
+    p_template_id: templateId,
+    p_target_plan_id: planId,
+  })
+
+  if (error || !data) {
+    throw new Error(
+      `Não foi possível aplicar o modelo: ${error?.message ?? 'operação não confirmada.'}`,
+    )
+  }
+}
+
+export async function deleteWorkoutTemplate(templateId: string): Promise<void> {
+  const client = useSupabaseClient<Database>()
+  const { error } = await client
+    .from('workout_templates')
+    .delete()
+    .eq('id', templateId)
+
+  if (error) {
+    throw new Error(`Não foi possível excluir o modelo: ${error.message}`)
+  }
+}
 
 function mapWorkoutItem(
   row: WorkoutItem,

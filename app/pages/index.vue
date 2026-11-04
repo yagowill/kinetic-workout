@@ -205,7 +205,7 @@ useHead({
     <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-4 pb-safe shadow-tier-3 backdrop-blur">
       <div class="mx-auto max-w-6xl">
         <NuxtLink
-          to="/anamnesis/new"
+          to="/students/new"
           class="btn btn-primary w-full text-lg sm:mx-auto sm:max-w-md"
         >
           <BaseIcon name="plus" :size="24" :stroke-width="2.5" />

@@ -24,6 +24,10 @@ const route = useRoute()
 const studentId = computed(() => String(route.params.studentId ?? ''))
 const isNewStudent = computed(() => studentId.value === 'new')
 
+if (isNewStudent.value) {
+  await navigateTo('/students/new', { replace: true })
+}
+
 const asyncKey = isNewStudent.value
   ? 'new-student-anamnesis'
   : `student-anamnesis-${studentId.value}`

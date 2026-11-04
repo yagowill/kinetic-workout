@@ -61,7 +61,10 @@ const anamnesisWhatsAppLabel = computed(() =>
           {{ student.name }}
         </h3>
         <p class="mt-0.5 text-sm font-medium text-slate-600">
-          {{ student.goal }} · {{ student.weeklyFrequency }}x por semana
+          <template v-if="student.anamnesisStatus === 'complete'">
+            {{ student.goal }} · {{ student.weeklyFrequency }}x por semana
+          </template>
+          <template v-else>Anamnese pendente</template>
         </p>
         <div class="mt-2">
           <StatusBadge :status="student.anamnesisStatus" />

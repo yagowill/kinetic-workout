@@ -215,6 +215,37 @@ export async function getStudentDetail(
   }
 }
 
+export async function createStudent(input: {
+  name: string
+  phone: string
+}): Promise<StudentSummary> {
+  const client = useSupabaseClient<Database>()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  const personalId = user?.id
+
+  if (authError || !personalId) {
+    throw new Error('Sua sessão expirou. Entre novamente para cadastrar o aluno.')
+  }
+
+  const { data: student, error } = await client
+    .from('students')
+    .insert({
+      personal_id: personalId,
+      name: input.name.trim(),
+      phone: input.phone.replace(/\D/g, ''),
+    })
+    .select('*')
+    .single()
+
+  if (error || !student) {
+    throw new Error(
+      `Não foi possível cadastrar o aluno: ${error?.message ?? 'registro não retornado.'}`,
+    )
+  }
+
+  return mapStudentSummary(student, null, null)
+}
+
 // Cria o aluno, a anamnese e um plano vazio em sequência.
 // Se a anamnese falhar, o aluno recém-criado é removido para não deixar
 // registros órfãos na carteira.

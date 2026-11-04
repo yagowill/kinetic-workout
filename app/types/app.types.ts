@@ -50,6 +50,12 @@ export interface ExerciseGifOverride {
   updatedAt: string
 }
 
+export interface WorkoutTemplate {
+  id: string
+  title: string
+  createdAt: string
+}
+
 export interface WorkoutItemView {
   id: string
   exerciseId: string

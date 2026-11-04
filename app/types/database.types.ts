@@ -221,6 +221,88 @@ export interface Database {
           },
         ];
       };
+      workout_templates: {
+        Row: {
+          id: string;
+          personal_id: string;
+          title: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          personal_id: string;
+          title: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          personal_id?: string;
+          title?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'workout_templates_personal_id_fkey';
+            columns: ['personal_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      workout_template_items: {
+        Row: {
+          id: string;
+          template_id: string;
+          session_label: string;
+          external_exercise_id: string;
+          exercise_name: string;
+          gif_url: string;
+          target_muscle: string;
+          sets: number;
+          reps: string;
+          rest_seconds: number;
+          notes: string | null;
+          order_index: number;
+        };
+        Insert: {
+          id?: string;
+          template_id: string;
+          session_label: string;
+          external_exercise_id: string;
+          exercise_name: string;
+          gif_url: string;
+          target_muscle: string;
+          sets?: number;
+          reps?: string;
+          rest_seconds?: number;
+          notes?: string | null;
+          order_index?: number;
+        };
+        Update: {
+          id?: string;
+          template_id?: string;
+          session_label?: string;
+          external_exercise_id?: string;
+          exercise_name?: string;
+          gif_url?: string;
+          target_muscle?: string;
+          sets?: number;
+          reps?: string;
+          rest_seconds?: number;
+          notes?: string | null;
+          order_index?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'workout_template_items_template_id_fkey';
+            columns: ['template_id'];
+            isOneToOne: false;
+            referencedRelation: 'workout_templates';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -242,6 +324,20 @@ export interface Database {
           p_new_access_token?: string | null;
         };
         Returns: string;
+      };
+      save_workout_template: {
+        Args: {
+          p_source_plan_id: string;
+          p_title: string;
+        };
+        Returns: string;
+      };
+      apply_workout_template: {
+        Args: {
+          p_template_id: string;
+          p_target_plan_id: string;
+        };
+        Returns: boolean;
       };
       get_public_workout_plan: {
         Args: {
